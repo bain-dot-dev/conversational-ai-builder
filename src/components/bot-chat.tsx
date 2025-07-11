@@ -42,6 +42,8 @@ export default function BotChat({ bot }: BotChatProps) {
   const [currentService, setCurrentService] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<string>("auto");
   const [availableServices, setAvailableServices] = useState<string[]>([]);
+  const [isFailingOver, setIsFailingOver] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
 
   // Check current service status and available services
   useEffect(() => {
@@ -100,6 +102,18 @@ export default function BotChat({ bot }: BotChatProps) {
           setIsRateLimited(false);
           setError(null);
         }, 60000); // Clear rate limit after 1 minute
+      } else if (
+        errorMessage.includes("timeout") ||
+        errorMessage.includes("504")
+      ) {
+        setIsFailingOver(true);
+        setError(
+          `${serviceSpecificMessage}Service is taking too long to respond. The system is automatically trying backup services. Please try again in a moment.`
+        );
+        setTimeout(() => {
+          setError(null);
+          setIsFailingOver(false);
+        }, 10000); // Clear timeout error after 10 seconds
       } else if (
         errorMessage.includes("quota") ||
         errorMessage.includes("402")
@@ -275,6 +289,14 @@ export default function BotChat({ bot }: BotChatProps) {
                         : currentService}
                     </Badge>
                   )}
+                  {isFailingOver && (
+                    <Badge
+                      variant="secondary"
+                      className="text-xs animate-pulse"
+                    >
+                      Switching Service...
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -307,6 +329,21 @@ export default function BotChat({ bot }: BotChatProps) {
                 Debug: V={isVoiceEnabled ? "✅" : "❌"} | S=
                 {isSpeaking ? "🔊" : "🔇"}
               </Badge>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setDebugMode(!debugMode)}
+                title="Toggle debug mode"
+                className="text-xs"
+              >
+                {debugMode ? "Debug On" : "Debug Off"}
+              </Button>
+              {debugMode && (
+                <Badge variant="outline" className="text-xs">
+                  Service: {selectedService} | Available:{" "}
+                  {availableServices.length}
+                </Badge>
+              )}
               <Button
                 size="sm"
                 variant="outline"
@@ -399,7 +436,13 @@ export default function BotChat({ bot }: BotChatProps) {
                   <div className="rounded-lg px-4 py-2 bg-gray-100 text-gray-900">
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Thinking...</span>
+                      <span>
+                        {isFailingOver
+                          ? "Switching to backup service..."
+                          : selectedService !== "auto"
+                          ? `Using ${selectedService}...`
+                          : "Thinking..."}
+                      </span>
                     </div>
                   </div>
                 </div>

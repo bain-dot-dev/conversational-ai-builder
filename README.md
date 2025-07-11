@@ -48,6 +48,27 @@ npm install
 
 #### Automatic Fallback System
 
+The system automatically tries services in order of priority with timeout-based failover:
+
+1. **OpenAI** (15s timeout) - Primary service, highest quality
+2. **Vapi** (8s timeout) - Voice-specialized AI
+3. **Retell** (6s timeout) - Conversational AI
+4. **Bland** (5s timeout) - Phone calling AI
+5. **Free Fallback** (3s timeout) - Local generation as last resort
+
+**Timeout-Based Failover:**
+
+- If any service takes too long to respond, the system automatically switches to the next available service
+- Users see a "Switching to backup service..." indicator during failover
+- The system tries all available services before failing completely
+- You can select a specific service or use "Auto" mode for automatic failover
+
+**Service Selection:**
+
+- **Auto Mode**: Automatically tries services in priority order with failover
+- **Manual Mode**: Uses only the selected service (no failover)
+- **Debug Mode**: Shows detailed information about service selection and availability
+
 The application automatically tries services in priority order:
 
 1. OpenAI (best quality)
@@ -90,6 +111,29 @@ The application will be available at `http://localhost:3000`
 - You've reached your OpenAI usage limit
 - Check your OpenAI account billing and usage
 - Add credits to your OpenAI account
+
+### Service Timeout Issues
+
+- The system automatically handles timeouts by switching to backup services
+- If you see "Service is taking too long to respond", wait a moment and try again
+- Check the service status badges to see which services are available
+- Enable "Debug Mode" to see detailed information about service selection
+
+### Testing Timeout Functionality
+
+To test the timeout-based failover system:
+
+1. **Debug Mode**: Enable debug mode in the chat interface to see service selection details
+2. **Service Selection**: Try different services manually to test individual service performance
+3. **Network Simulation**: Use browser dev tools to simulate slow network conditions
+4. **Test Endpoint**: The system includes a test endpoint at `/api/test-timeout` for simulating failures
+
+**Debug Information:**
+
+- Service badges show which service is currently being used
+- "Switching Service..." indicator appears during failover
+- Debug mode shows available services and current selection
+- Console logs provide detailed information about service attempts and failures
 
 ## Important Notes
 

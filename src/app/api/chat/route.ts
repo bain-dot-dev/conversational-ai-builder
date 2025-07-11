@@ -3,6 +3,31 @@ import { getAvailableServices } from "@/lib/api-services";
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
 
+// Service timeout configuration (in milliseconds)
+// This function defines how long to wait for each service before timing out
+// and moving to the next service in the priority order:
+// 1. OpenAI (15s) - Real API, can be slower
+// 2. Vapi (8s) - Voice API with moderate timeout
+// 3. Retell (6s) - Conversational API with shorter timeout
+// 4. Bland (5s) - Phone calling API with quick timeout
+// 5. Free Fallback (3s) - Local generation, should be fastest
+const getServiceTimeout = (serviceName: string): number => {
+  switch (serviceName) {
+    case "OpenAI":
+      return 15000; // 15 seconds for OpenAI (can be slower due to real API)
+    case "Vapi":
+      return 8000; // 8 seconds for Vapi
+    case "Retell":
+      return 6000; // 6 seconds for Retell
+    case "Bland":
+      return 5000; // 5 seconds for Bland
+    case "Free Fallback":
+      return 3000; // 3 seconds for Free Fallback (should be fastest)
+    default:
+      return 10000; // 10 seconds default
+  }
+};
+
 export async function POST(req: Request) {
   try {
     const { messages, botPersonality, botName, preferredService } =
@@ -80,15 +105,30 @@ export async function POST(req: Request) {
       }
     }
 
-    // Try each service in priority order
+    // Try each service in priority order with timeout
     for (const service of servicesToTry) {
       try {
         console.log(`Attempting to use ${service.name} service`);
-        const response = await service.handler(
-          messages,
-          botPersonality,
-          botName
-        );
+
+        // Set timeout for each service (different timeouts for different services)
+        const timeoutMs = getServiceTimeout(service.name);
+        console.log(`Setting ${timeoutMs}ms timeout for ${service.name}`);
+
+        const response = await Promise.race([
+          service.handler(messages, botPersonality, botName),
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    `${service.name} service timeout after ${timeoutMs}ms`
+                  )
+                ),
+              timeoutMs
+            )
+          ),
+        ]);
+
         console.log(`${service.name} service completed successfully`);
 
         // For OpenAI, return the streaming response directly
@@ -175,15 +215,27 @@ export async function POST(req: Request) {
           serviceError instanceof Error
             ? serviceError.message
             : String(serviceError);
-        console.error(`${service.name} service failed:`, errorMessage);
+
+        const isTimeout = errorMessage.includes("timeout");
+        const errorType = isTimeout ? "timeout" : "error";
+
+        console.error(`${service.name} service ${errorType}:`, errorMessage);
 
         // If this is the last service, we'll throw the error
         if (service === servicesToTry[servicesToTry.length - 1]) {
+          console.error(
+            `All services failed. Last error from ${service.name}:`,
+            errorMessage
+          );
           throw serviceError;
         }
 
-        // Otherwise, continue to the next service
-        console.log(`Trying next service...`);
+        // Log the fallback attempt
+        const nextService =
+          servicesToTry[servicesToTry.findIndex((s) => s === service) + 1];
+        console.log(
+          `${service.name} ${errorType} - failing over to ${nextService?.name}...`
+        );
       }
     }
   } catch (error: unknown) {
@@ -192,7 +244,21 @@ export async function POST(req: Request) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Error message:", errorMessage);
 
-    // Handle specific OpenAI errors
+    // Handle specific errors with better user feedback
+    if (errorMessage.includes("timeout")) {
+      const timeoutService =
+        errorMessage.match(/(\w+) service timeout/)?.[1] || "API";
+      return new Response(
+        JSON.stringify({
+          error: `${timeoutService} service is taking too long to respond. The system attempted to use backup services but all available services are currently slow or unavailable. Please try again in a moment.`,
+        }),
+        {
+          status: 504,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
     if (errorMessage.includes("rate limit")) {
       return new Response(
         JSON.stringify({
