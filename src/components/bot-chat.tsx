@@ -133,10 +133,21 @@ export default function BotChat({ bot }: BotChatProps) {
 
   const speakMessage = useCallback(
     (text: string) => {
-      if (isSpeaking) {
-        speechSynthesis.cancel();
+      console.log("🎤 speakMessage called - isVoiceEnabled:", isVoiceEnabled);
+
+      // CRITICAL: Don't speak if voice is disabled
+      if (!isVoiceEnabled) {
+        console.log("🔇 Voice is disabled, not speaking");
+        return;
       }
 
+      if (isSpeaking) {
+        console.log("🔊 Already speaking, canceling previous");
+        speechSynthesis.cancel();
+        setIsSpeaking(false);
+      }
+
+      console.log("✅ Starting speech synthesis");
       const utterance = new SpeechSynthesisUtterance(text);
 
       // Apply bot's voice settings
@@ -152,12 +163,17 @@ export default function BotChat({ bot }: BotChatProps) {
       utterance.pitch = bot.voiceSettings.pitch;
       utterance.volume = bot.voiceSettings.volume;
 
-      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onstart = () => {
+        console.log("🔊 Speech started");
+        setIsSpeaking(true);
+      };
       utterance.onend = () => {
+        console.log("🔇 Speech ended");
         setIsSpeaking(false);
         currentUtteranceRef.current = null;
       };
-      utterance.onerror = () => {
+      utterance.onerror = (error) => {
+        console.log("❌ Speech error:", error);
         setIsSpeaking(false);
         currentUtteranceRef.current = null;
       };
@@ -165,7 +181,7 @@ export default function BotChat({ bot }: BotChatProps) {
       currentUtteranceRef.current = utterance;
       speechSynthesis.speak(utterance);
     },
-    [bot.voiceSettings, isSpeaking]
+    [bot.voiceSettings, isSpeaking, isVoiceEnabled]
   );
 
   useEffect(() => {
@@ -175,13 +191,23 @@ export default function BotChat({ bot }: BotChatProps) {
   useEffect(() => {
     // Speak the latest assistant message if voice is enabled
     const lastMessage = messages[messages.length - 1];
+    console.log(
+      "📢 Message effect - isVoiceEnabled:",
+      isVoiceEnabled,
+      "lastMessage:",
+      lastMessage?.content?.slice(0, 50)
+    );
+
     if (
       lastMessage &&
       lastMessage.role === "assistant" &&
       isVoiceEnabled &&
       lastMessage.id !== "welcome"
     ) {
+      console.log("🎯 Calling speakMessage");
       speakMessage(lastMessage.content);
+    } else {
+      console.log("❌ Not speaking - conditions not met");
     }
   }, [messages, isVoiceEnabled, speakMessage]);
 
@@ -190,17 +216,41 @@ export default function BotChat({ bot }: BotChatProps) {
   };
 
   const toggleVoice = () => {
+    console.log(
+      "🔄 Toggling voice from",
+      isVoiceEnabled,
+      "to",
+      !isVoiceEnabled
+    );
+
+    // Always stop speaking when toggling voice
     if (isSpeaking) {
+      console.log("🛑 Stopping speech before toggle");
       speechSynthesis.cancel();
       setIsSpeaking(false);
     }
+
     setIsVoiceEnabled(!isVoiceEnabled);
   };
 
   const stopSpeaking = () => {
+    console.log("🛑 Stop button clicked");
     speechSynthesis.cancel();
     setIsSpeaking(false);
+    if (currentUtteranceRef.current) {
+      currentUtteranceRef.current = null;
+    }
   };
+
+  // Test function to verify voice works
+  // const testVoice = () => {
+  //   console.log("🧪 Testing voice - isVoiceEnabled:", isVoiceEnabled);
+  //   if (isVoiceEnabled) {
+  //     speakMessage("Voice test - I can speak!");
+  //   } else {
+  //     console.log("Voice is disabled, not speaking");
+  //   }
+  // };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -253,15 +303,38 @@ export default function BotChat({ bot }: BotChatProps) {
               <Badge variant={isVoiceEnabled ? "default" : "secondary"}>
                 Voice {isVoiceEnabled ? "On" : "Off"}
               </Badge>
-              <Button size="sm" variant="outline" onClick={toggleVoice}>
+              <Badge variant="outline" className="text-xs">
+                Debug: V={isVoiceEnabled ? "✅" : "❌"} | S=
+                {isSpeaking ? "🔊" : "🔇"}
+              </Badge>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={toggleVoice}
+                title={`Turn voice ${isVoiceEnabled ? "off" : "on"}`}
+              >
                 {isVoiceEnabled ? (
                   <Volume2 className="h-4 w-4" />
                 ) : (
                   <VolumeX className="h-4 w-4" />
                 )}
               </Button>
+              {/* <Button
+                size="sm"
+                variant="outline"
+                onClick={testVoice}
+                title="Test voice"
+                className="text-xs"
+              >
+                Test
+              </Button> */}
               {isSpeaking && (
-                <Button size="sm" variant="outline" onClick={stopSpeaking}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={stopSpeaking}
+                  title="Stop speaking"
+                >
                   Stop
                 </Button>
               )}
