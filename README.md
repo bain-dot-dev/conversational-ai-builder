@@ -1,18 +1,105 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Conversational AI Builder
 
-## Getting Started
+A Next.js application for creating and chatting with custom AI bots using OpenAI's GPT models.
 
-First, run the development server:
+## Setup Instructions
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure AI API Services
+
+**Multiple API Services Supported:** Choose one or more AI services with free tiers:
+
+#### Option 1: OpenAI (Recommended)
+
+1. Go to [OpenAI Platform](https://platform.openai.com/account/api-keys)
+2. Create a new API key
+3. Add to `.env.local`:
+   ```
+   OPENAI_API_KEY=sk-your-actual-api-key-here
+   ```
+
+#### Option 2: Alternative Services (Free Tiers Available)
+
+**Vapi (Voice AI)**
+
+- Free tier: Available
+- Specializes in voice interactions
+- Get key: [vapi.ai](https://vapi.ai)
+- Add to `.env.local`: `VAPI_API_KEY=your-vapi-key`
+
+**Retell AI**
+
+- Free tier: Available
+- Conversational AI platform
+- Get key: [retellai.com](https://retellai.com)
+- Add to `.env.local`: `RETELL_API_KEY=your-retell-key`
+
+**Bland AI**
+
+- Free tier: Available
+- AI phone calling platform
+- Get key: [bland.ai](https://bland.ai)
+- Add to `.env.local`: `BLAND_API_KEY=your-bland-key`
+
+#### Automatic Fallback System
+
+The application automatically tries services in priority order:
+
+1. OpenAI (best quality)
+2. Vapi (voice-optimized)
+3. Retell (conversational)
+4. Bland (phone AI)
+5. Free fallback (basic responses)
+
+### 3. Run the Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
+
+The application will be available at `http://localhost:3000`
+
+## Features
+
+- Create custom AI bots with unique personalities
+- Voice settings for text-to-speech
+- Real-time chat with streaming responses
+- Bot management (create, edit, delete)
+- Usage monitoring
+
+## Troubleshooting
+
+### "OpenAI API key not configured" Error
+
+- Make sure you've added your API key to `.env.local`
+- Restart the development server after adding the API key
+
+### "Rate limit exceeded" Error
+
+- OpenAI has rate limits based on your account tier
+- Wait a moment before sending another message
+- Consider upgrading your OpenAI account for higher limits
+
+### "Quota exceeded" Error
+
+- You've reached your OpenAI usage limit
+- Check your OpenAI account billing and usage
+- Add credits to your OpenAI account
+
+## Important Notes
+
+- This application uses GPT-3.5-turbo for cost efficiency
+- You need an active OpenAI account with available credits
+- The API key should never be shared or committed to version control
+
+---
+
+## Original Next.js Information
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
