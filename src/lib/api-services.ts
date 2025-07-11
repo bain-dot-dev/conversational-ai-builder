@@ -503,3 +503,9 @@ export const getAvailableServices = (): ApiServiceConfig[] => {
     },
   ].filter((service) => service.isAvailable());
 };
+
+// Technical Details:
+// - OpenAI: Convert streamText result to custom streaming format
+// - Vapi/Retell: Generate ReadableStream with encoded text chunks
+// - Bland/Free: Convert JSON responses to streaming in API route
+// - Format: `0:"content"` for text, `d:{"finishReason":"stop"}` for completion
