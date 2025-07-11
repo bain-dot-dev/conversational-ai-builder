@@ -43,7 +43,10 @@ export default function BotChat({ bot }: BotChatProps) {
   const [selectedService, setSelectedService] = useState<string>("auto");
   const [availableServices, setAvailableServices] = useState<string[]>([]);
   const [isFailingOver, setIsFailingOver] = useState(false);
-  const [debugMode, setDebugMode] = useState(false);
+  // const [debugMode, setDebugMode] = useState(false);
+  const [lastSpokenMessageId, setLastSpokenMessageId] = useState<string | null>(
+    null
+  );
 
   // Check current service status and available services
   useEffect(() => {
@@ -155,13 +158,19 @@ export default function BotChat({ bot }: BotChatProps) {
         return;
       }
 
+      // Prevent empty or very short messages
+      if (!text || text.trim().length < 2) {
+        console.log("🔇 Text too short or empty, not speaking");
+        return;
+      }
+
       if (isSpeaking) {
         console.log("🔊 Already speaking, canceling previous");
         speechSynthesis.cancel();
         setIsSpeaking(false);
       }
 
-      console.log("✅ Starting speech synthesis");
+      console.log("✅ Starting speech synthesis for text:", text.slice(0, 50));
       const utterance = new SpeechSynthesisUtterance(text);
 
       // Apply bot's voice settings
@@ -205,25 +214,45 @@ export default function BotChat({ bot }: BotChatProps) {
   useEffect(() => {
     // Speak the latest assistant message if voice is enabled
     const lastMessage = messages[messages.length - 1];
+    const messagePreview = lastMessage?.content?.slice(0, 50) || "No content";
+
     console.log(
       "📢 Message effect - isVoiceEnabled:",
       isVoiceEnabled,
-      "lastMessage:",
-      lastMessage?.content?.slice(0, 50)
+      "lastMessage ID:",
+      lastMessage?.id,
+      "lastMessage role:",
+      lastMessage?.role,
+      "lastMessage preview:",
+      messagePreview,
+      "total messages:",
+      messages.length
     );
 
+    // More strict conditions to prevent loops
     if (
       lastMessage &&
       lastMessage.role === "assistant" &&
       isVoiceEnabled &&
-      lastMessage.id !== "welcome"
+      lastMessage.id !== "welcome" &&
+      lastMessage.id !== lastSpokenMessageId &&
+      lastMessage.content &&
+      lastMessage.content.trim().length > 0
     ) {
-      console.log("🎯 Calling speakMessage");
+      console.log("🎯 Calling speakMessage for message:", lastMessage.id);
+      setLastSpokenMessageId(lastMessage.id);
       speakMessage(lastMessage.content);
     } else {
-      console.log("❌ Not speaking - conditions not met");
+      console.log("❌ Not speaking - conditions not met:", {
+        hasLastMessage: !!lastMessage,
+        isAssistant: lastMessage?.role === "assistant",
+        isVoiceEnabled,
+        notWelcome: lastMessage?.id !== "welcome",
+        notAlreadySpoken: lastMessage?.id !== lastSpokenMessageId,
+        hasContent: !!lastMessage?.content?.trim(),
+      });
     }
-  }, [messages, isVoiceEnabled, speakMessage]);
+  }, [messages, isVoiceEnabled, speakMessage, lastSpokenMessageId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -244,6 +273,8 @@ export default function BotChat({ bot }: BotChatProps) {
       setIsSpeaking(false);
     }
 
+    // Reset spoken message tracking when toggling voice
+    setLastSpokenMessageId(null);
     setIsVoiceEnabled(!isVoiceEnabled);
   };
 
@@ -254,6 +285,8 @@ export default function BotChat({ bot }: BotChatProps) {
     if (currentUtteranceRef.current) {
       currentUtteranceRef.current = null;
     }
+    // Reset spoken message tracking when manually stopping
+    setLastSpokenMessageId(null);
   };
 
   // Test function to verify voice works
@@ -325,11 +358,12 @@ export default function BotChat({ bot }: BotChatProps) {
               <Badge variant={isVoiceEnabled ? "default" : "secondary"}>
                 Voice {isVoiceEnabled ? "On" : "Off"}
               </Badge>
-              <Badge variant="outline" className="text-xs">
+              {/* <Badge variant="outline" className="text-xs">
                 Debug: V={isVoiceEnabled ? "✅" : "❌"} | S=
-                {isSpeaking ? "🔊" : "🔇"}
-              </Badge>
-              <Button
+                {isSpeaking ? "🔊" : "🔇"} | Last:{" "}
+                {lastSpokenMessageId || "None"}
+              </Badge> */}
+              {/* <Button
                 size="sm"
                 variant="outline"
                 onClick={() => setDebugMode(!debugMode)}
@@ -337,13 +371,13 @@ export default function BotChat({ bot }: BotChatProps) {
                 className="text-xs"
               >
                 {debugMode ? "Debug On" : "Debug Off"}
-              </Button>
-              {debugMode && (
+              </Button> */}
+              {/* {debugMode && (
                 <Badge variant="outline" className="text-xs">
                   Service: {selectedService} | Available:{" "}
                   {availableServices.length}
                 </Badge>
-              )}
+              )} */}
               <Button
                 size="sm"
                 variant="outline"
