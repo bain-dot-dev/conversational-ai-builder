@@ -21,3 +21,13 @@ export async function GET() {
     primaryService: availableServices[0]?.name || "none",
   });
 }
+
+
+
+// - Implement service selection dropdown in chat interface
+// - Add real-time service status monitoring and display
+// - Show current active service with badge indicators
+// - Enable users to prefer specific services or use auto-selection
+// - Add comprehensive setup guide with service status indicators
+
+
